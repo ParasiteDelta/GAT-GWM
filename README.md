@@ -2,7 +2,8 @@
 
 ### Why?
 Really, there was no reason why other than exploring async and websockets using Rust. I haven't been messing around with programming 
-too much lately, so I figured that this would be a good starting point. Yes, it is shoddily-written and unnecessary, but why not?
+too much lately, so I figured that this would be a good starting point. Yes, it is shoddily-written and unnecessary, but why not? 
+And yes, this is based on the same premise as [Burgr033's work using Python, which can be found here.](https://github.com/burgr033/GlazeWM-autotiling-python)
 
 ### What about-?
 Yes, I know, you could use pytools to compile [the original script by Burgr033](https://github.com/burgr033/GlazeWM-autotiling-python) and run it as an executable, but I personally hate that approach and think that the packaging for Rust is superior in this regard. 
