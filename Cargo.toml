@@ -1,0 +1,18 @@
+[package]
+name = "glaalt"
+description = "Alternating tiler for GlazeWM via WebSocket IPC"
+version = "0.1.0"
+edition = "2021"
+license = "GPLv3"
+
+[dependencies]
+anyhow = "1.0.82"
+serde_json = "1.0.116"
+tokio = { version = "1.37.0", features = ["full"] }
+tungstenite = "0.21.0"
+url = "2.5.0"
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 4
