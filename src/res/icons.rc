@@ -1,0 +1,3 @@
+aa-exe-icon ICON "TestImg02.ico"
+main-icon ICON "TestImg02.ico"
+tray-default ICON "TestImg02.ico"
