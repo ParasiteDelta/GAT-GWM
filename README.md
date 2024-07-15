@@ -13,7 +13,7 @@ Yes, I know that there's rookie mistakes and a patchy appearance, such as how it
 
 -----
 ### Okay, so how would I set this up to build from scratch?
-Well, download the source code and make sure that Rust is installed on your system. I tend to use the Nightly toolchain and the GNU branch, which you can download and set as your default with the following:
+Well, download the source code and make sure that Rust is installed on your system. I tend to use the Nightly toolchain and the GNU GCC branch, which you can download and set as your default with the following:
 ```Rust
 rustup install nightly-gnu
 rustup default nightly-gnu

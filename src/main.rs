@@ -1,21 +1,26 @@
+#![windows_subsystem = "windows"]
+
 use serde_json::Value;
 use tray_item::{ IconSource, TrayItem };
 use tungstenite::{ connect, Message };
 use url::Url;
 
-fn hide_console_window() {
-    use std::ptr;
-    use winapi::um::{
-        wincon::GetConsoleWindow,
-        winuser::{ ShowWindow, SW_HIDE }
-    };
+// Retaining the unsafe function in case it proves to be necessary later, will
+// remove in a later PR if it proves unnecessary for certain.
+//---
+// fn hide_console_window() {
+//     use std::ptr;
+//     use winapi::um::{
+//         wincon::GetConsoleWindow,
+//         winuser::{ ShowWindow, SW_HIDE }
+//     };
 
-    let window = unsafe { GetConsoleWindow() };
+//     let window = unsafe { GetConsoleWindow() };
 
-    if window != ptr::null_mut() {
-        unsafe { ShowWindow(window, SW_HIDE); }
-    }
-}
+//     if window != ptr::null_mut() {
+//         unsafe { ShowWindow(window, SW_HIDE); }
+//     }
+// }
 
 #[tokio::main]
 async fn main() {
@@ -36,7 +41,7 @@ async fn main() {
 
     //At this point, the tray itself was successfully created, so we use Windows' shit to hide the console.
     //Could be considered preemptive, given how the rest of the menu wasn't constructed yet, but eh.
-    hide_console_window();
+    //hide_console_window();
 
     //Create menu label to show what it is.
     match tray.add_label("GAT - GlazeWM Alternating Tiler") {
