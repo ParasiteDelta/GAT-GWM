@@ -84,7 +84,7 @@ async fn main() {
     }
 
     //If we error out attempting to subscribe to GWM, kill the process.
-    if let Err(e) = socket.send(Message::Text("subscribe -e window_managed".into())) {
+    if let Err(e) = socket.send(Message::Text("subscribe -e focus_changed".into())) {
         eprintln!("\nERR: Could not parse raw message data from initial GWM subscription! Raw error:\n{e}\n");
     } else {
         loop {
@@ -102,9 +102,7 @@ async fn main() {
                 }
             };
 
-            if let Some((x, y)) = get_window_height_width(&json_msg["data"]["focusedContainer"])
-                .or_else(|| get_window_height_width(&json_msg["data"]["managedWindow"]))
-            {
+            if let Some((x, y)) = get_window_height_width(&json_msg["data"]["focusedContainer"]) {
                 size_tile(&mut socket, x, y).unwrap();
             }
         }
