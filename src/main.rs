@@ -47,15 +47,16 @@ async fn main() {
 
     //Create menu label to show what it is.
     match tray.add_label("GAT - GlazeWM Alternating Tiler") {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(e) => eprintln!("\nERR: Could not add label to System Tray!\nRaw Error: {e}\n"),
     }
 
     //Create menu item for exiting program.
-    match tray.add_menu_item("Quit GAT", || {
+    let menu_item_function = || {
         std::process::exit(0);
-    }) {
-        Ok(_) => {}
+    };
+    match tray.add_menu_item("Quit GAT", menu_item_function) {
+        Ok(()) => {}
         Err(e) => {
             eprintln!(
                 "\nERR: Failed to add menu item! How did this even compile?\nRaw Error: {e}\n"
@@ -78,8 +79,8 @@ async fn main() {
     //Successful connection, print debug info.
     println!("Connected to GWM\nResCode - {}", response.status());
     println!("Response Headers:\n");
-    for (ref header, _value) in response.headers() {
-        println!("* {}", header);
+    for (header, _value) in response.headers() {
+        println!("* {}", &header);
     }
 
     //If we error out attempting to subscribe to GWM, kill the process.
@@ -102,9 +103,9 @@ async fn main() {
             };
 
             if let Some((x, y)) = get_window_height_width(&json_msg["data"]["focusedContainer"])
-                .or(get_window_height_width(&json_msg["data"]["managedWindow"]))
+                .or_else(|| get_window_height_width(&json_msg["data"]["managedWindow"]))
             {
-                size_tile(&mut socket, x, y).unwrap()
+                size_tile(&mut socket, x, y).unwrap();
             }
         }
     }
