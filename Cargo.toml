@@ -2,7 +2,7 @@
 name = "gat-gwm"
 description = "Alternating tiler for GlazeWM via WebSocket IPC, effectively a sloppy rewrite of Burgr033's Python script in Rust."
 authors = ["ParasiteDelta"]
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 license = "GPLv3"
 
