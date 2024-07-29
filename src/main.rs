@@ -83,7 +83,6 @@ async fn main() {
                 let result = get_value(&mut socket);
                 if result == test { continue } else { result }
             };
-            println!("=-=-=-=-=-=-=\n{:#?}\n", focus_msg["data"]);
 
             if version.major == 3u64 {
                 let tiling_direction = {
@@ -92,7 +91,6 @@ async fn main() {
                 };
 
                 if let Some((x, y)) = get_window_height_width(&focus_msg["data"]["focusedContainer"]) {
-                    println!("\nWindow dimension conversion to coordinate pair successful!");
                     size_tile_v3(
                         &mut socket, x, y,
                         tiling_direction["data"]["directionContainer"]["tilingDirection"].to_string()
