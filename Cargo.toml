@@ -2,12 +2,13 @@
 name = "gat-gwm"
 description = "Alternating tiler for GlazeWM via WebSocket IPC, effectively a sloppy rewrite of Burgr033's Python script in Rust."
 authors = ["ParasiteDelta"]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "GPLv3"
 
 [dependencies]
 anyhow = "1.0.82"
+semver = "1.0.23"
 serde_json = "1.0.116"
 tokio = { version = "1.37.0", features = ["full"] }
 tray-item = "0.10.0"
@@ -22,3 +23,6 @@ embed-resource = "^2.3"
 lto = true
 opt-level = "s"
 codegen-units = 4
+
+[features]
+no_console = []

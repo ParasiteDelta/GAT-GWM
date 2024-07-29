@@ -258,10 +258,11 @@ dependencies = [
 
 [[package]]
 name = "gat-gwm"
-version = "0.2.1"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "embed-resource",
+ "semver",
  "serde_json",
  "tokio",
  "tray-item",
