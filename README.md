@@ -1,4 +1,9 @@
+<p align="center">
+  <img height="100%" src="https://github.com/user-attachments/assets/28415f2c-7e13-428c-b2c7-8a0cfdcb5f27">
+</p>
+
 # GAT - GlazeWM Alternating Tiler, written in Rust.
+
 
 ### Why?
 Really, there was no reason why other than exploring async and websockets using Rust. I haven't been messing around with programming
