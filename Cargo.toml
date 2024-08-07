@@ -26,4 +26,3 @@ codegen-units = 4
 
 [features]
 no_console = []
-debug = []
