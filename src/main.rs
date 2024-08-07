@@ -39,10 +39,9 @@ fn get_value(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Value {
 fn get_version(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Version {
     let _query = socket.send(Message::Text("query app-metadata".into()));
     let reading = {
-        let test = Value::default();
         let result = get_value(socket);
 
-        if result == test {
+        if result == Value::default() {
             panic!("ERR: Could not retrieve version info! Aborting...");
         } else {
             result
