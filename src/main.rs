@@ -4,13 +4,20 @@ use std::net::TcpStream;
 
 use semver::Version;
 use serde_json::Value;
-use tray_item::{IconSource, TrayItem};
+use tray_item::{IconSource, TIError, TrayItem};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 enum GlazeMajor {
     V2,
     V3(String),
+}
+
+fn build_tray(tray: &mut TrayItem) -> Result<(), TIError> {
+    tray.add_label("GAT - GlazeWM Alternating Tiler")?;
+    let quit_menu_function = || std::process::exit(0);
+    tray.add_menu_item("Quit GAT", quit_menu_function)?;
+    Ok(())
 }
 
 fn get_value(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Value {
@@ -85,35 +92,21 @@ fn get_window_dimensions(v: &Value) -> Option<(f64, f64)> {
 
 #[tokio::main]
 async fn main() {
-    let mut tray: TrayItem = {
-        if let Ok(ti) = TrayItem::new(
+    let _tray: TrayItem = {
+        let mut tray_object = if let Ok(ti) = TrayItem::new(
             "GAT - GlazeWM Alternating Tiler",
             IconSource::Resource("main-icon"),
         ) {
             ti
         } else {
-            eprintln!("\nERR: Could not init System Tray!\n");
-            panic!(
-                "\nMOR: Cannot continue runtime, please double-check your computer configuration!\n"
-            );
+            panic!("\nERR: Could not initialize tray!\nAborting...\n");
+        };
+
+        match build_tray(&mut tray_object) {
+            Ok(()) => tray_object,
+            Err(tie) => panic!("\nERR: Could not build tray!\nRaw Error: {tie}\nAborting...\n"),
         }
     };
-
-    if let Err(e) = tray.add_label("GAT - GlazeWM Alternating Tiler") {
-        eprintln!("\nERR: Failed to add label! How did this even compile?\nRaw Error: {e}\n");
-        panic!(
-            "\nMOR: Cannot continue runtime, please double-check your computer configuration!\n"
-        );
-    }
-
-    let quit_menu_function = || std::process::exit(0);
-
-    if let Err(e) = tray.add_menu_item("Quit GAT", quit_menu_function) {
-        eprintln!("\nERR: Failed to add menu item! How did this even compile?\nRaw Error: {e}\n");
-        panic!(
-            "\nMOR: Cannot continue runtime, please double-check your computer configuration!\n"
-        );
-    }
 
     let (mut socket, _) = connect(if let Ok(url) = Url::parse("ws://localhost:6123") {
         url
@@ -147,9 +140,6 @@ async fn main() {
                     result
                 }
             };
-
-            #[cfg(feature = "debug")]
-            println!("=====-----=====-----=====\n{:#?}\n", focus_msg);
 
             let version_data: GlazeMajor = {
                 if version.major == 3u64 {
