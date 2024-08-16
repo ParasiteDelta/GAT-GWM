@@ -1,7 +1,15 @@
 brace_style = "AlwaysNextLine"
 edition = "2021"
+fn_single_line = true
+force_explicit_abi = true
+format_code_in_doc_comments = true
+group_imports = "StdExternalCrate"
 hard_tabs = true
+imports_granularity = "Crate"
+imports_layout = "Vertical"
 indent_style = "Block"
+max_width = 80
 spaces_around_ranges = true
 tab_spaces = 4
+unstable_features = true
 wrap_comments = true

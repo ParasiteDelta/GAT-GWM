@@ -4,8 +4,17 @@ use std::net::TcpStream;
 
 use semver::Version;
 use serde_json::Value;
-use tray_item::{IconSource, TIError, TrayItem};
-use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
+use tray_item::{
+	IconSource,
+	TIError,
+	TrayItem,
+};
+use tungstenite::{
+	connect,
+	stream::MaybeTlsStream,
+	Message,
+	WebSocket,
+};
 use url::Url;
 
 enum GlazeMajor
@@ -55,7 +64,9 @@ fn get_version(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Version
 		}
 	};
 
-	if let Ok(v) = Version::parse(reading["data"]["version"].as_str().unwrap_or_default()) {
+	if let Ok(v) =
+		Version::parse(reading["data"]["version"].as_str().unwrap_or_default())
+	{
 		v
 	} else {
 		Version::new(0, 0, 0)
@@ -82,8 +93,12 @@ fn manage_tiling_dir(
 			}
 		}
 		GlazeMajor::V3(m) => {
-			if (x < y && m != "\"vertical\"") || (x > y && m != "\"horizontal\"") {
-				socket.send(Message::Text("command toggle-tiling-direction".into()))
+			if (x < y && m != "\"vertical\"")
+				|| (x > y && m != "\"horizontal\"")
+			{
+				socket.send(Message::Text(
+					"command toggle-tiling-direction".into(),
+				))
 			} else {
 				Ok(())
 			}
@@ -113,23 +128,26 @@ async fn main()
 
 		match build_tray(&mut tray_object) {
 			Ok(()) => tray_object,
-			Err(tie) => panic!("\nERR: Could not build tray!\nRaw Error: {tie}\nAborting...\n"),
+			Err(tie) => panic!(
+				"\nERR: Could not build tray!\nRaw Error: {tie}\nAborting...\n"
+			),
 		}
 	};
 
-	let (mut socket, _) = connect(if let Ok(url) = Url::parse("ws://localhost:6123") {
-		url
-	} else {
-		eprintln!(
-			"\nERR: Could not parse internal string to URL, was this \
+	let (mut socket, _) =
+		connect(if let Ok(url) = Url::parse("ws://localhost:6123") {
+			url
+		} else {
+			eprintln!(
+				"\nERR: Could not parse internal string to URL, was this \
 				 mistyped or something?\n"
-		);
-		panic!(
-			"\nMOR: Cannot continue runtime, please double-check your \
+			);
+			panic!(
+				"\nMOR: Cannot continue runtime, please double-check your \
 				 computer configuration!\n"
-		);
-	})
-	.expect("\nERR: Can't connect to GWM WS\n");
+			);
+		})
+		.expect("\nERR: Can't connect to GWM WS\n");
 
 	let version: Version = get_version(&mut socket);
 	let subscription: String = match version.major {
@@ -155,15 +173,21 @@ async fn main()
 
 			let version_data: GlazeMajor = {
 				if version.major == 3u64 {
-					let _ = socket.send(Message::Text("query tiling-direction".into()));
+					let _ = socket
+						.send(Message::Text("query tiling-direction".into()));
 					let tv = get_value(&mut socket);
-					GlazeMajor::V3(tv["data"]["directionContainer"]["tilingDirection"].to_string())
+					GlazeMajor::V3(
+						tv["data"]["directionContainer"]["tilingDirection"]
+							.to_string(),
+					)
 				} else {
 					GlazeMajor::V2
 				}
 			};
 
-			if let Some((x, y)) = get_window_dimensions(&focus_msg["data"]["focusedContainer"]) {
+			if let Some((x, y)) =
+				get_window_dimensions(&focus_msg["data"]["focusedContainer"])
+			{
 				manage_tiling_dir(&mut socket, x, y, version_data).unwrap();
 			}
 		}
