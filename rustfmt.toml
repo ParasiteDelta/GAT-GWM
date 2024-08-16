@@ -1,0 +1,7 @@
+brace_style = "AlwaysNextLine"
+edition = "2021"
+hard_tabs = true
+indent_style = "Block"
+spaces_around_ranges = true
+tab_spaces = 4
+wrap_comments = true
