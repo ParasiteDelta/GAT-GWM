@@ -119,7 +119,7 @@ async fn main() {
     })
     .expect("\nERR: Can't connect to GWM WS\n");
 
-    let version = get_version(&mut socket);
+    let version: Version = get_version(&mut socket);
     let subscription: String = match version.major {
         3u64 => String::from("sub -e focus_changed"),
         _ => String::from("subscribe -e focus_changed"),
