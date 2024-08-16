@@ -20,9 +20,10 @@ winapi = { version = "^0.3", features = ["wincon", "winuser"] }
 embed-resource = "^2.3"
 
 [profile.release]
+codegen-units = 4
 lto = true
 opt-level = "s"
-codegen-units = 4
+strip = "debuginfo"
 
 [features]
 no_console = []
