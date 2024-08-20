@@ -43,6 +43,7 @@ general:
 -----
 ### Wishlist:
 - [X] DONE: Make a way to minimize this to tray or hide the window without crazy code expansion.
+- [ ] Consider expanding tool into offering multiple possible layouts or functions until done by GWM's staff.
 - [ ] Figure out why I'm so bad at programming.
 - [ ] Do better.
 
