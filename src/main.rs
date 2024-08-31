@@ -1,29 +1,25 @@
 #![cfg_attr(feature = "no_console", windows_subsystem = "windows")]
 
-use std::net::TcpStream;
-
-use semver::Version;
-use serde_json::Value;
+use gat_gwm::{
+	error_prompt,
+	get_ws_socket,
+	toggle_tiling_dir,
+	value_from_ws,
+	version_from_ws,
+	window_dimensions_from_value,
+	ws_send,
+	GlazeCurrentTilingData,
+	GlazeMajorVersion,
+	GlazeTilingDirection,
+};
 use tray_item::{
 	IconSource,
 	TIError,
 	TrayItem,
 };
-use tungstenite::{
-	connect,
-	stream::MaybeTlsStream,
-	Message,
-	WebSocket,
-};
-use url::Url;
 
-enum GlazeMajor
-{
-	V2,
-	V3(String),
-}
-
-fn build_tray(tray: &mut TrayItem) -> Result<(), TIError>
+//Left in main due to specificity; non-generic.
+fn build_tray(tray: &mut TrayItem) -> std::result::Result<(), TIError>
 {
 	tray.add_label("GAT - GlazeWM Alternating Tiler")?;
 	let quit_menu_function = || std::process::exit(0);
@@ -31,90 +27,8 @@ fn build_tray(tray: &mut TrayItem) -> Result<(), TIError>
 	Ok(())
 }
 
-fn get_value(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Value
-{
-	match serde_json::from_str(
-		socket
-			.read()
-			.expect("ERR: Could not read message!\n")
-			.to_text()
-			.unwrap_or_default(),
-	) {
-		Ok(v) => v,
-		Err(e) => {
-			eprintln!(
-				"\nERR: GWM WS MSG could not be parsed to Value!\nRaw \
-				 error:\n{e}\n"
-			);
-			Value::default()
-		}
-	}
-}
-
-fn get_version(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Version
-{
-	let _query = socket.send(Message::Text("query app-metadata".into()));
-	let reading = {
-		let result = get_value(socket);
-
-		if result == Value::default() {
-			panic!("ERR: Could not retrieve version info! Aborting...");
-		} else {
-			result
-		}
-	};
-
-	if let Ok(v) =
-		Version::parse(reading["data"]["version"].as_str().unwrap_or_default())
-	{
-		v
-	} else {
-		Version::new(0, 0, 0)
-	}
-}
-
-fn manage_tiling_dir(
-	socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
-	x: f64,
-	y: f64,
-	gwm_version: GlazeMajor,
-) -> Result<(), tungstenite::Error>
-{
-	match gwm_version {
-		GlazeMajor::V2 => {
-			if x < y {
-				socket.send(Message::Text(
-					"command \"tiling direction vertical\"".into(),
-				))
-			} else {
-				socket.send(Message::Text(
-					"command \"tiling direction horizontal\"".into(),
-				))
-			}
-		}
-		GlazeMajor::V3(m) => {
-			if (x < y && m != "\"vertical\"")
-				|| (x > y && m != "\"horizontal\"")
-			{
-				socket.send(Message::Text(
-					"command toggle-tiling-direction".into(),
-				))
-			} else {
-				Ok(())
-			}
-		}
-	}
-}
-
-fn get_window_dimensions(v: &Value) -> Option<(f64, f64)>
-{
-	v["width"]
-		.as_f64()
-		.and_then(|x| v["height"].as_f64().map(|y| (x, y)))
-}
-
 #[tokio::main]
-async fn main()
+async fn main() -> anyhow::Result<()>
 {
 	let _tray: TrayItem = {
 		let mut tray_object = if let Ok(ti) = TrayItem::new(
@@ -123,73 +37,75 @@ async fn main()
 		) {
 			ti
 		} else {
-			panic!("\nERR: Could not initialize tray!\nAborting...\n");
+			error_prompt(
+				"Could not init tray!",
+				"ERR: Could not initialize the tray! Aborting...",
+			);
+			std::process::exit(333);
 		};
 
 		match build_tray(&mut tray_object) {
 			Ok(()) => tray_object,
-			Err(tie) => panic!(
-				"\nERR: Could not build tray!\nRaw Error: {tie}\nAborting...\n"
-			),
+			Err(tie) => {
+				error_prompt(
+					"Could not build tray!",
+					format!("For some reason, could not build the tray.\nRaw error: {tie}")
+						.as_str(),
+				);
+				std::process::exit(333);
+			}
 		}
 	};
 
-	let (mut socket, _) =
-		connect(if let Ok(url) = Url::parse("ws://localhost:6123") {
-			url
-		} else {
-			eprintln!(
-				"\nERR: Could not parse internal string to URL, was this \
-				 mistyped or something?\n"
-			);
-			panic!(
-				"\nMOR: Cannot continue runtime, please double-check your \
-				 computer configuration!\n"
-			);
-		})
-		.expect("\nERR: Can't connect to GWM WS\n");
-
-	let version: Version = get_version(&mut socket);
-	let subscription: String = match version.major {
-		3u64 => String::from("sub -e focus_changed"),
-		_ => String::from("subscribe -e focus_changed"),
+	let mut socket = get_ws_socket();
+	let mut current_data = GlazeCurrentTilingData {
+		rt_version: {
+			let vfws = version_from_ws(&mut socket);
+			GlazeMajorVersion::from(vfws.major)
+		},
+		..GlazeCurrentTilingData::default()
+	};
+	let focus_sub_str: String = match current_data.rt_version {
+		GlazeMajorVersion::V3 => String::from("sub -e focus_changed"),
+		GlazeMajorVersion::V2 => String::from("subscribe -e focus_changed"),
 	};
 
-	if let Err(e) = socket.send(Message::Text(subscription)) {
+	if let Err(e) = ws_send(&mut socket, focus_sub_str) {
 		eprintln!(
-			"\nERR: Could not parse raw message data from initial GWM \
-			 subscription! Raw error:\n{e}\n"
+			"\nERR: Could not parse raw message data from initial GWM subscription!
+			\nRaw error:\n{e}\n"
 		);
 	} else {
 		loop {
 			let focus_msg = {
-				let result = get_value(&mut socket);
-				if result == Value::default() {
-					continue;
-				} else {
-					result
+				let buf = value_from_ws(&mut socket);
+				match buf {
+					_ if buf == serde_json::Value::default() => continue,
+					_ => buf,
 				}
 			};
 
-			let version_data: GlazeMajor = {
-				if version.major == 3u64 {
-					let _ = socket
-						.send(Message::Text("query tiling-direction".into()));
-					let tv = get_value(&mut socket);
-					GlazeMajor::V3(
-						tv["data"]["directionContainer"]["tilingDirection"]
-							.to_string(),
-					)
-				} else {
-					GlazeMajor::V2
+			current_data.tiling_dir = match &current_data.rt_version {
+				GlazeMajorVersion::V3 => {
+					let _ = ws_send(&mut socket, "query tiling-direction".into());
+					let tiling_value = value_from_ws(&mut socket);
+
+					Some(GlazeTilingDirection::from_string(
+						tiling_value["data"]["directionContainer"]["tilingDirection"].to_string(),
+					))
 				}
+				GlazeMajorVersion::V2 => None,
 			};
 
 			if let Some((x, y)) =
-				get_window_dimensions(&focus_msg["data"]["focusedContainer"])
+				window_dimensions_from_value(&focus_msg["data"]["focusedContainer"])
 			{
-				manage_tiling_dir(&mut socket, x, y, version_data).unwrap();
+				toggle_tiling_dir(&mut socket, x, y, &current_data)?;
+			} else {
+				println!("WRN: Failed to retrieve window dimensions");
 			}
 		}
 	}
+
+	Ok(())
 }
