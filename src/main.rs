@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "no_console", windows_subsystem = "windows")]
 
+use anyhow::anyhow;
 use gat_gwm::{
 	error_prompt,
 	get_ws_socket,
@@ -8,18 +9,19 @@ use gat_gwm::{
 	version_from_ws,
 	window_dimensions_from_value,
 	ws_send,
+	GlazeContainerData,
 	GlazeCurrentTilingData,
+	GlazeEventType,
 	GlazeMajorVersion,
 	GlazeTilingDirection,
 };
 use tray_item::{
 	IconSource,
-	TIError,
 	TrayItem,
 };
 
 //Left in main due to specificity; non-generic.
-fn build_tray(tray: &mut TrayItem) -> std::result::Result<(), TIError>
+fn build_tray(tray: &mut TrayItem) -> anyhow::Result<()>
 {
 	tray.add_label("GAT - GlazeWM Alternating Tiler")?;
 	let quit_menu_function = || std::process::exit(0);
@@ -31,17 +33,18 @@ fn build_tray(tray: &mut TrayItem) -> std::result::Result<(), TIError>
 async fn main() -> anyhow::Result<()>
 {
 	let _tray: TrayItem = {
-		let mut tray_object = if let Ok(ti) = TrayItem::new(
+		let mut tray_object = match TrayItem::new(
 			"GAT - GlazeWM Alternating Tiler",
 			IconSource::Resource("main-icon"),
 		) {
-			ti
-		} else {
-			error_prompt(
-				"Could not init tray!",
-				"ERR: Could not initialize the tray! Aborting...",
-			);
-			std::process::exit(333);
+			Ok(ti) => ti,
+			Err(e) => {
+				error_prompt(
+					"Could Not Init Tray!",
+					"Could not initialize the tray! Aborting...",
+				);
+				return Err(anyhow!("Could not initialize tray!\nRaw error: {e}"));
+			}
 		};
 
 		match build_tray(&mut tray_object) {
@@ -52,31 +55,41 @@ async fn main() -> anyhow::Result<()>
 					format!("For some reason, could not build the tray.\nRaw error: {tie}")
 						.as_str(),
 				);
-				std::process::exit(333);
+				return Err(tie);
 			}
 		}
 	};
 
 	let mut socket = get_ws_socket();
 	let mut current_data = GlazeCurrentTilingData {
-		rt_version: {
-			let vfws = version_from_ws(&mut socket);
-			GlazeMajorVersion::from(vfws.major)
-		},
+		rt_version: { GlazeMajorVersion::from(version_from_ws(&mut socket).major) },
 		..GlazeCurrentTilingData::default()
 	};
-	let focus_sub_str: String = match current_data.rt_version {
-		GlazeMajorVersion::V3 => String::from("sub -e focus_changed"),
-		GlazeMajorVersion::V2 => String::from("subscribe -e focus_changed"),
+
+	//Explicit match, to further restrict runtime validity to quantified values.
+	let focus_runtime_container: GlazeEventType = match current_data.rt_version {
+		GlazeMajorVersion::V3 => GlazeEventType::FocusChanged(GlazeContainerData::new()),
+		GlazeMajorVersion::V2 => GlazeEventType::FocusChanged(GlazeContainerData::new()),
 	};
 
-	if let Err(e) = ws_send(&mut socket, focus_sub_str) {
-		eprintln!(
-			"\nERR: Could not parse raw message data from initial GWM subscription!
-			\nRaw error:\n{e}\n"
-		);
-	} else {
-		loop {
+	//See, this is a good example of why I'm probably just going to stick to the
+	// fundamentals for comparators. Using If Let here causes a false warning from
+	// the compiler, stating that the code after the exit-on-error call is
+	// unreachable when it's not. While I know that this is actually the fault of
+	// the design team, since they've yet to even create a stabilized format, much
+	// less fully incorporate now-standard features, it doesn't make it any less
+	// irritating to deal with.
+	match focus_runtime_container.subscribe_from(&mut socket) {
+		Err(e) => {
+			error_prompt(
+				"Could not subscribe via GWM IPC!",
+				"For some reason, could not subscribe to Event via GWM IPC",
+			);
+			return Err(anyhow!(
+				"Could not parse GWM Subscription data!\nRaw error: {e}"
+			));
+		}
+		_ => loop {
 			let focus_msg = {
 				let buf = value_from_ws(&mut socket);
 				match buf {
@@ -90,22 +103,23 @@ async fn main() -> anyhow::Result<()>
 					let _ = ws_send(&mut socket, "query tiling-direction".into());
 					let tiling_value = value_from_ws(&mut socket);
 
-					Some(GlazeTilingDirection::from_string(
-						tiling_value["data"]["directionContainer"]["tilingDirection"].to_string(),
-					))
+					Some(
+						match GlazeTilingDirection::from_str(
+							tiling_value["data"]["directionContainer"]["tilingDirection"]
+								.to_string(),
+						) {
+							Ok(td) => td,
+							Err(_) => continue,
+						},
+					)
 				}
 				GlazeMajorVersion::V2 => None,
 			};
 
-			if let Some((x, y)) =
-				window_dimensions_from_value(&focus_msg["data"]["focusedContainer"])
-			{
-				toggle_tiling_dir(&mut socket, x, y, &current_data)?;
-			} else {
-				println!("WRN: Failed to retrieve window dimensions");
+			match window_dimensions_from_value(&focus_msg["data"]["focusedContainer"]) {
+				Some((x, y)) => toggle_tiling_dir(&mut socket, x, y, &current_data)?,
+				None => continue,
 			}
-		}
+		},
 	}
-
-	Ok(())
 }
